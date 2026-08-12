@@ -1,0 +1,17 @@
+{
+  "name": "@gojodev/mahoraga-crawl",
+  "version": "1.1.0",
+  "private": false,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "exports": { ".": "./src/index.js" },
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/index.js && node --check src/server.js && node --check public/app.js"
+  },
+  "dependencies": {
+    "crawlee": "3.17.0",
+    "express": "5.1.0",
+    "helmet": "8.1.0"
+  }
+}
