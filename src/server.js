@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
 import { crawlSites, normalizeConfig, toCsv } from './index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -18,7 +19,7 @@ app.get('/api/health', (_req,res)=>res.json({ok:true,name:'Mahoraga Crawl',engin
 app.post('/api/crawls', async (req,res)=>{
   try {
     const config = await normalizeConfig(req.body || {});
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const job = { id,status:'running',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),config,leads:[],pages:[],errors:[],controller:null };
     jobs.set(id,job);
     crawlSites(config, {
