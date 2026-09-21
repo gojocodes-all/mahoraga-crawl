@@ -7,7 +7,8 @@
   "exports": { ".": "./src/index.js" },
   "scripts": {
     "start": "node src/server.js",
-    "check": "node --check src/index.js && node --check src/server.js && node --check public/app.js"
+    "check": "node --check src/index.js && node --check src/app.js && node --check src/server.js && node --check public/app.js && node --check test/app.test.js",
+    "test": "node --test"
   },
   "dependencies": {
     "crawlee": "3.17.0",
