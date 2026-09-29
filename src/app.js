@@ -64,6 +64,7 @@ export function createApp({
         pages: [],
         errors: [],
         controller: null,
+        stopRequested: false,
       };
 
       jobs.set(id, job);
@@ -73,6 +74,17 @@ export function createApp({
           crawler(config, {
             onController: controller => {
               job.controller = controller;
+              if (job.stopRequested) {
+                void Promise.resolve(controller.stop?.()).catch(error => {
+                  job.status = 'failed';
+                  const message = String(error?.message || error || 'Unknown error').slice(
+                    0,
+                    400,
+                  );
+                  job.errors.push(`Could not stop crawl: ${message}`);
+                  job.updatedAt = new Date().toISOString();
+                });
+              }
             },
             onPage: ({ page, leads }) => {
               job.pages.push(page);
@@ -113,9 +125,12 @@ export function createApp({
   app.post('/api/crawls/:id/stop', async (req, res) => {
     const job = jobs.get(req.params.id);
     if (!job) return res.status(404).json({ error: 'Crawl not found or expired.' });
+    if (!ACTIVE_JOB_STATUSES.has(job.status)) return res.json(publicJob(job));
 
-    await job.controller?.stop?.();
+    job.stopRequested = true;
     job.status = 'stopping';
+    job.updatedAt = new Date().toISOString();
+    await job.controller?.stop?.();
     return res.json(publicJob(job));
   });
 

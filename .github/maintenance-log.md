@@ -1,5 +1,39 @@
 # Maintenance log
 
+## 2026-09-29 — Preserve terminal crawl states during stop requests
+
+### Rationale
+
+The stop route accepted requests before the crawler had supplied its controller,
+but then discarded the stop intent and allowed the crawl to continue. A late
+stop request could also change an already completed job back to `stopping`.
+
+### Files changed
+
+- `src/app.js` — record stop intent before awaiting shutdown, forward an early
+  request when the controller becomes available, and preserve terminal states.
+- `test/app.test.js` — cover completed-job idempotency and early stop requests.
+- `.github/maintenance-log.md` — record this maintenance work.
+
+### Validation
+
+- `npm run check`
+- `npm test`
+- `git diff --check`
+- Reviewed the complete diff for API compatibility, cleanup behavior, error
+  handling, security, and unintended dependency changes.
+
+### Risk
+
+Low. Successful stop requests keep the existing response shape. The change is
+limited to job-state ordering and makes stop requests on terminal jobs
+idempotent instead of regressing their status.
+
+### Rollback
+
+Revert the pull request's squash commit to restore the previous stop-state
+ordering.
+
 ## 2026-09-21 — Testable HTTP application boundary
 
 ### Rationale
