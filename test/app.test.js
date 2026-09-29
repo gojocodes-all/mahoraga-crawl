@@ -86,3 +86,86 @@ test('unknown crawl IDs return a stable JSON error', async () => {
   assert.equal(response.status, 404);
   assert.deepEqual(body, { error: 'Crawl not found or expired.' });
 });
+
+test('stopping a completed crawl preserves its terminal status', async () => {
+  const response = await fetch(`${baseUrl}/api/crawls/test-crawl-id/stop`, {
+    method: 'POST',
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.status, 'completed');
+});
+
+test('an early stop request is forwarded when the controller becomes available', async () => {
+  let finishCrawl;
+  let exposeController;
+  const crawlResult = new Promise(resolve => {
+    finishCrawl = resolve;
+  });
+  const controllerGate = new Promise(resolve => {
+    exposeController = resolve;
+  });
+  const stoppableApp = createApp({
+    configNormalizer: async () => testConfig,
+    idFactory: () => 'stoppable-crawl-id',
+    crawler: async (_config, hooks) => {
+      await controllerGate;
+      hooks.onController?.({
+        stop: async () => {
+          finishCrawl({
+            config: testConfig,
+            pages: [],
+            leads: [],
+            errors: [],
+            stopped: true,
+          });
+        },
+      });
+      return crawlResult;
+    },
+  });
+  const stoppableServer = stoppableApp.listen(0, '127.0.0.1');
+
+  try {
+    await once(stoppableServer, 'listening');
+    const address = stoppableServer.address();
+    const stoppableBaseUrl = `http://127.0.0.1:${address.port}`;
+
+    await fetch(`${stoppableBaseUrl}/api/crawls`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ startUrls: ['https://example.com'] }),
+    });
+    const stopResponse = await fetch(
+      `${stoppableBaseUrl}/api/crawls/stoppable-crawl-id/stop`,
+      { method: 'POST' },
+    );
+    const stopping = await stopResponse.json();
+
+    assert.equal(stopResponse.status, 200);
+    assert.equal(stopping.status, 'stopping');
+
+    exposeController();
+    await new Promise(resolve => setImmediate(resolve));
+    const statusResponse = await fetch(
+      `${stoppableBaseUrl}/api/crawls/stoppable-crawl-id`,
+    );
+    const stopped = await statusResponse.json();
+
+    assert.equal(stopped.status, 'stopped');
+  } finally {
+    finishCrawl({
+      config: testConfig,
+      pages: [],
+      leads: [],
+      errors: [],
+      stopped: true,
+    });
+    stoppableApp.locals.dispose();
+    stoppableServer.closeAllConnections?.();
+    await new Promise((resolve, reject) => {
+      stoppableServer.close(error => (error ? reject(error) : resolve()));
+    });
+  }
+});
