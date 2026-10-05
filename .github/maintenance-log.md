@@ -1,5 +1,45 @@
 # Maintenance log
 
+## 2026-10-05 — Document the crawler's complete operating contract
+
+### Rationale
+
+The README named the crawler's main features but did not explain the web/API
+workflow, accepted limits, returned data, memory-only job lifecycle, or safe
+deployment boundary. A contributor or operator therefore had to reverse-engineer
+the implementation before using the service responsibly.
+
+### Files changed
+
+- `README.md` — document requirements, web and package usage, exact crawl
+  options, hooks, API routes, lead fields, job retention, project structure,
+  security boundaries, validation, and contribution guidance.
+- `.gitignore` — exclude local dependencies, environment files, npm debug logs,
+  and operating-system metadata while allowing a future safe `.env.example`.
+- `.github/maintenance-log.md` — record this maintenance work.
+
+### Validation
+
+- `npm install --ignore-scripts`
+- `npm run check`
+- `npm test`
+- Verified every documented command, path, option range, route, response limit,
+  and lifecycle claim against the implementation and tests.
+- `git diff --check`
+- Reviewed the complete diff for accuracy, security guidance, backward
+  compatibility, repository conventions, and accidental behavioral changes.
+
+### Risk
+
+Low. The change adds documentation and local ignore rules only. Runtime code,
+dependencies, package exports, API behavior, and tracked configuration are
+unchanged.
+
+### Rollback
+
+Revert the pull request's squash commit to restore the previous README and
+ignore-file state.
+
 ## 2026-09-29 — Preserve terminal crawl states during stop requests
 
 ### Rationale
