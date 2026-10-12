@@ -1,5 +1,42 @@
 # Maintenance log
 
+## 2026-10-12 — Preserve failure state when stopping a crawl
+
+### Rationale
+
+If a crawler controller rejected its stop request, the API left the job in the
+non-terminal `stopping` state and Express returned its generic error response.
+The job could never recover, and a later crawler result could overwrite the
+failure, hiding the shutdown problem from API clients.
+
+### Files changed
+
+- `src/app.js` — centralize job failure recording, return a stable failed job
+  response when stopping fails, and prevent a late crawler result from
+  overwriting that failure.
+- `test/app.test.js` — cover the rejected stop request, JSON response, stored
+  error, and late-result race.
+- `.github/maintenance-log.md` — record this maintenance work.
+
+### Validation
+
+- `npm run check`
+- `npm test`
+- `git diff --check`
+- Reviewed the complete diff for API compatibility, lifecycle races, error
+  disclosure, dependencies, and repository conventions.
+
+### Risk
+
+Low. Successful stops and requests for terminal jobs retain their existing
+behavior. Only rejected controller stops now return HTTP 500 with the existing
+public job shape and settle the job as `failed` instead of leaving it stuck.
+
+### Rollback
+
+Revert this pull request's squash commit to restore the previous stop-error
+behavior.
+
 ## 2026-10-05 — Document the crawler's complete operating contract
 
 ### Rationale
