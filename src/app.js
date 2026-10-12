@@ -76,13 +76,7 @@ export function createApp({
               job.controller = controller;
               if (job.stopRequested) {
                 void Promise.resolve(controller.stop?.()).catch(error => {
-                  job.status = 'failed';
-                  const message = String(error?.message || error || 'Unknown error').slice(
-                    0,
-                    400,
-                  );
-                  job.errors.push(`Could not stop crawl: ${message}`);
-                  job.updatedAt = new Date().toISOString();
+                  markJobFailed(job, `Could not stop crawl: ${cleanError(error)}`);
                 });
               }
             },
@@ -98,6 +92,7 @@ export function createApp({
           }),
         )
         .then(result => {
+          if (job.status === 'failed') return;
           job.status = result.stopped ? 'stopped' : 'completed';
           job.leads = result.leads;
           job.pages = result.pages;
@@ -105,9 +100,8 @@ export function createApp({
           job.updatedAt = new Date().toISOString();
         })
         .catch(error => {
-          job.status = 'failed';
-          job.errors.push(error.message);
-          job.updatedAt = new Date().toISOString();
+          if (job.status === 'failed') return;
+          markJobFailed(job, cleanError(error));
         });
 
       res.status(202).json(publicJob(job));
@@ -130,7 +124,12 @@ export function createApp({
     job.stopRequested = true;
     job.status = 'stopping';
     job.updatedAt = new Date().toISOString();
-    await job.controller?.stop?.();
+    try {
+      await job.controller?.stop?.();
+    } catch (error) {
+      markJobFailed(job, `Could not stop crawl: ${cleanError(error)}`);
+      return res.status(500).json(publicJob(job));
+    }
     return res.json(publicJob(job));
   });
 
@@ -168,6 +167,16 @@ export function createApp({
 
   app.locals.dispose = () => clearInterval(cleanupTimer);
   return app;
+}
+
+function markJobFailed(job, message) {
+  job.status = 'failed';
+  job.errors.push(message);
+  job.updatedAt = new Date().toISOString();
+}
+
+function cleanError(error) {
+  return String(error?.message || error || 'Unknown error').slice(0, 400);
 }
 
 function publicJob(job) {
