@@ -169,3 +169,78 @@ test('an early stop request is forwarded when the controller becomes available',
     });
   }
 });
+
+test('a stop-controller failure becomes a visible terminal job state', async () => {
+  let finishCrawl;
+  const crawlResult = new Promise(resolve => {
+    finishCrawl = resolve;
+  });
+  const failingApp = createApp({
+    configNormalizer: async () => testConfig,
+    idFactory: () => 'stop-failure-id',
+    crawler: async (_config, hooks) => {
+      hooks.onController?.({
+        stop: async () => {
+          throw new Error('controller unavailable');
+        },
+      });
+      return crawlResult;
+    },
+  });
+  const failingServer = failingApp.listen(0, '127.0.0.1');
+
+  try {
+    await once(failingServer, 'listening');
+    const address = failingServer.address();
+    const failingBaseUrl = `http://127.0.0.1:${address.port}`;
+
+    await fetch(`${failingBaseUrl}/api/crawls`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ startUrls: ['https://example.com'] }),
+    });
+    await new Promise(resolve => setImmediate(resolve));
+
+    const stopResponse = await fetch(
+      `${failingBaseUrl}/api/crawls/stop-failure-id/stop`,
+      { method: 'POST' },
+    );
+    const failed = await stopResponse.json();
+
+    assert.equal(stopResponse.status, 500);
+    assert.equal(failed.status, 'failed');
+    assert.deepEqual(failed.errors, [
+      'Could not stop crawl: controller unavailable',
+    ]);
+
+    finishCrawl({
+      config: testConfig,
+      pages: [],
+      leads: [],
+      errors: [],
+      stopped: true,
+    });
+    await new Promise(resolve => setImmediate(resolve));
+
+    const statusResponse = await fetch(
+      `${failingBaseUrl}/api/crawls/stop-failure-id`,
+    );
+    const stored = await statusResponse.json();
+
+    assert.equal(stored.status, 'failed');
+    assert.equal(stored.stats.errors, 1);
+  } finally {
+    finishCrawl({
+      config: testConfig,
+      pages: [],
+      leads: [],
+      errors: [],
+      stopped: true,
+    });
+    failingApp.locals.dispose();
+    failingServer.closeAllConnections?.();
+    await new Promise((resolve, reject) => {
+      failingServer.close(error => (error ? reject(error) : resolve()));
+    });
+  }
+});
