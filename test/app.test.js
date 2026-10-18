@@ -41,7 +41,7 @@ before(async () => {
 });
 
 after(async () => {
-  app.locals.dispose();
+  await app.locals.dispose();
   server.closeAllConnections?.();
   await new Promise((resolve, reject) => {
     server.close(error => (error ? reject(error) : resolve()));
@@ -162,10 +162,100 @@ test('an early stop request is forwarded when the controller becomes available',
       errors: [],
       stopped: true,
     });
-    stoppableApp.locals.dispose();
+    await stoppableApp.locals.dispose();
     stoppableServer.closeAllConnections?.();
     await new Promise((resolve, reject) => {
       stoppableServer.close(error => (error ? reject(error) : resolve()));
+    });
+  }
+});
+
+test('application disposal stops active crawls and waits for them to settle', async () => {
+  let exposeController;
+  let finishCrawl;
+  let stopCalls = 0;
+  const controllerGate = new Promise(resolve => {
+    exposeController = resolve;
+  });
+  const crawlResult = new Promise(resolve => {
+    finishCrawl = resolve;
+  });
+  const disposableApp = createApp({
+    configNormalizer: async () => testConfig,
+    idFactory: () => 'shutdown-crawl-id',
+    crawler: async (_config, hooks) => {
+      await controllerGate;
+      hooks.onController?.({
+        stop: async () => {
+          stopCalls += 1;
+          finishCrawl({
+            config: testConfig,
+            pages: [],
+            leads: [],
+            errors: [],
+            stopped: true,
+          });
+        },
+      });
+      return crawlResult;
+    },
+  });
+  const disposableServer = disposableApp.listen(0, '127.0.0.1');
+
+  try {
+    await once(disposableServer, 'listening');
+    const address = disposableServer.address();
+    const disposableBaseUrl = `http://127.0.0.1:${address.port}`;
+
+    await fetch(`${disposableBaseUrl}/api/crawls`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ startUrls: ['https://example.com'] }),
+    });
+
+    const firstDisposal = disposableApp.locals.dispose();
+    const repeatedDisposal = disposableApp.locals.dispose();
+    assert.equal(repeatedDisposal, firstDisposal);
+
+    const lateCreateResponse = await fetch(`${disposableBaseUrl}/api/crawls`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ startUrls: ['https://example.com'] }),
+    });
+    assert.equal(lateCreateResponse.status, 503);
+    assert.deepEqual(await lateCreateResponse.json(), {
+      error: 'Service is shutting down.',
+    });
+
+    let disposalSettled = false;
+    void firstDisposal.then(() => {
+      disposalSettled = true;
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(disposalSettled, false);
+
+    exposeController();
+    await firstDisposal;
+
+    assert.equal(stopCalls, 1);
+    const statusResponse = await fetch(
+      `${disposableBaseUrl}/api/crawls/shutdown-crawl-id`,
+    );
+    const stopped = await statusResponse.json();
+    assert.equal(stopped.status, 'stopped');
+  } finally {
+    exposeController();
+    finishCrawl({
+      config: testConfig,
+      pages: [],
+      leads: [],
+      errors: [],
+      stopped: true,
+    });
+    await disposableApp.locals.dispose();
+    disposableServer.closeAllConnections?.();
+    await new Promise((resolve, reject) => {
+      disposableServer.close(error => (error ? reject(error) : resolve()));
     });
   }
 });
@@ -237,7 +327,7 @@ test('a stop-controller failure becomes a visible terminal job state', async () 
       errors: [],
       stopped: true,
     });
-    failingApp.locals.dispose();
+    await failingApp.locals.dispose();
     failingServer.closeAllConnections?.();
     await new Promise((resolve, reject) => {
       failingServer.close(error => (error ? reject(error) : resolve()));

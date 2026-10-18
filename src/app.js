@@ -19,6 +19,8 @@ export function createApp({
 } = {}) {
   const app = express();
   const jobs = new Map();
+  let isDisposing = false;
+  let disposePromise;
 
   app.disable('x-powered-by');
   app.use(
@@ -50,8 +52,16 @@ export function createApp({
   });
 
   app.post('/api/crawls', async (req, res) => {
+    if (isDisposing) {
+      return res.status(503).json({ error: 'Service is shutting down.' });
+    }
+
     try {
       const config = await configNormalizer(req.body || {});
+      if (isDisposing) {
+        return res.status(503).json({ error: 'Service is shutting down.' });
+      }
+
       const id = idFactory();
       const timestamp = new Date().toISOString();
       const job = {
@@ -65,19 +75,19 @@ export function createApp({
         errors: [],
         controller: null,
         stopRequested: false,
+        stopPromise: null,
+        completion: null,
       };
 
       jobs.set(id, job);
 
-      void Promise.resolve()
+      job.completion = Promise.resolve()
         .then(() =>
           crawler(config, {
             onController: controller => {
               job.controller = controller;
               if (job.stopRequested) {
-                void Promise.resolve(controller.stop?.()).catch(error => {
-                  markJobFailed(job, `Could not stop crawl: ${cleanError(error)}`);
-                });
+                void stopJobController(job).catch(() => {});
               }
             },
             onPage: ({ page, leads }) => {
@@ -121,13 +131,9 @@ export function createApp({
     if (!job) return res.status(404).json({ error: 'Crawl not found or expired.' });
     if (!ACTIVE_JOB_STATUSES.has(job.status)) return res.json(publicJob(job));
 
-    job.stopRequested = true;
-    job.status = 'stopping';
-    job.updatedAt = new Date().toISOString();
     try {
-      await job.controller?.stop?.();
-    } catch (error) {
-      markJobFailed(job, `Could not stop crawl: ${cleanError(error)}`);
+      await requestJobStop(job);
+    } catch {
       return res.status(500).json(publicJob(job));
     }
     return res.json(publicJob(job));
@@ -165,8 +171,47 @@ export function createApp({
   }, cleanupIntervalMs);
   cleanupTimer.unref();
 
-  app.locals.dispose = () => clearInterval(cleanupTimer);
+  app.locals.dispose = () => {
+    if (disposePromise) return disposePromise;
+
+    isDisposing = true;
+    clearInterval(cleanupTimer);
+    const activeJobs = [...jobs.values()].filter(job =>
+      ACTIVE_JOB_STATUSES.has(job.status),
+    );
+
+    disposePromise = Promise.allSettled(
+      activeJobs.map(async job => {
+        await requestJobStop(job).catch(() => {});
+        await job.completion;
+      }),
+    ).then(() => undefined);
+
+    return disposePromise;
+  };
   return app;
+}
+
+async function requestJobStop(job) {
+  if (!ACTIVE_JOB_STATUSES.has(job.status)) return;
+
+  job.stopRequested = true;
+  job.status = 'stopping';
+  job.updatedAt = new Date().toISOString();
+  await stopJobController(job);
+}
+
+function stopJobController(job) {
+  if (!job.controller?.stop) return Promise.resolve();
+  if (job.stopPromise) return job.stopPromise;
+
+  job.stopPromise = Promise.resolve()
+    .then(() => job.controller.stop())
+    .catch(error => {
+      markJobFailed(job, `Could not stop crawl: ${cleanError(error)}`);
+      throw error;
+    });
+  return job.stopPromise;
 }
 
 function markJobFailed(job, message) {

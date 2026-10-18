@@ -51,6 +51,10 @@ exposes JSON and CSV downloads. Jobs are stored only in the running Node.js
 process. Finished, failed, or stopped jobs are removed after about one hour, and
 all jobs disappear when the process restarts.
 
+On `SIGINT` or `SIGTERM`, the server stops accepting requests, asks each active
+crawl to stop, and waits for those jobs to settle. A 10-second deadline prevents
+a broken crawler from leaving a deployment stuck during shutdown.
+
 ## Library API
 
 The package exports `crawlSites`, `extractBusinessRecords`, `assertPublicUrl`,
@@ -167,7 +171,8 @@ npm test
 ```
 
 The HTTP tests do not crawl external sites. They create the Express application
-with injected test doubles and bind it to an ephemeral loopback port.
+with injected test doubles, bind it to an ephemeral loopback port, and exercise
+normal, stop-failure, and application-disposal lifecycle paths.
 
 When contributing:
 

@@ -1,5 +1,45 @@
 # Maintenance log
 
+## 2026-10-18 — Stop active crawls during application shutdown
+
+### Rationale
+
+The process signal handlers closed the HTTP server and cleanup timer, but the
+application disposer did not request cancellation of running crawl jobs. Active
+Crawlee work could therefore outlive shutdown initiation and delay a deployment
+until the process was killed externally.
+
+### Files changed
+
+- `src/app.js` — centralize idempotent job-stop handling, reject new crawls once
+  disposal begins, stop active jobs, and wait for their completion.
+- `src/server.js` — await HTTP and application shutdown together, with a bounded
+  10-second graceful-shutdown deadline.
+- `test/app.test.js` — cover disposal before a crawler controller is available,
+  repeated disposal, new-work rejection, and final stopped state.
+- `README.md` — document the shutdown contract and lifecycle test coverage.
+- `.github/maintenance-log.md` — record this maintenance work.
+
+### Validation
+
+- `npm run check`
+- `npm test`
+- `git diff --check`
+- Reviewed the complete diff for API compatibility, shutdown races, error
+  handling, security, dependencies, and repository conventions.
+
+### Risk
+
+Low. Normal crawl creation, polling, export, and explicit stop behavior retain
+their existing response shapes. The new HTTP 503 response is limited to crawl
+creation after application disposal has begun, when the process cannot safely
+accept durable work.
+
+### Rollback
+
+Revert this pull request's squash commit to restore timer-only disposal and the
+previous process shutdown behavior.
+
 ## 2026-10-12 — Preserve failure state when stopping a crawl
 
 ### Rationale
