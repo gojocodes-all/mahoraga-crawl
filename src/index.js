@@ -90,11 +90,18 @@ export function extractBusinessRecords($, url, statusCode = 200) {
   ]).slice(0, 12);
   const socials = collectSocials($, url);
   const source = new URL(url);
+  const usePageContactFallback = orgs.length === 1;
 
   const fromJsonLd = orgs.map(obj => {
     const address = normalizeAddress(obj.address);
-    const phones = unique([...(Array.isArray(obj.telephone) ? obj.telephone : [obj.telephone]), ...phonesOnPage].filter(Boolean).map(clean));
-    const emails = unique([...(Array.isArray(obj.email) ? obj.email : [obj.email]), ...emailsOnPage].filter(Boolean).map(clean));
+    const phones = unique([
+      ...(Array.isArray(obj.telephone) ? obj.telephone : [obj.telephone]),
+      ...(usePageContactFallback ? phonesOnPage : []),
+    ].filter(Boolean).map(clean));
+    const emails = unique([
+      ...(Array.isArray(obj.email) ? obj.email : [obj.email]),
+      ...(usePageContactFallback ? emailsOnPage : []),
+    ].filter(Boolean).map(clean));
     const website = clean(obj.url || obj.sameAs?.find?.(v => isStandaloneUrl(v)) || source.origin);
     return {
       title: clean(obj.name || siteName || h1 || simplifyTitle(pageTitle) || source.hostname),
