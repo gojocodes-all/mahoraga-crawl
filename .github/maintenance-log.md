@@ -1,5 +1,47 @@
 # Maintenance log
 
+## 2026-10-24 — Keep directory businesses distinct
+
+### Rationale
+
+When a page contained multiple JSON-LD businesses, the extractor copied the
+page-wide phone number and email address onto every record. Lead deduplication
+prioritizes phone numbers, so otherwise distinct directory entries could
+collapse into one lead. Page-level contacts now supplement structured data only
+when the page describes one business; multi-business pages require each record
+to provide its own contact details.
+
+### Files changed
+
+- `src/index.js` — limit page-contact fallback to single-business structured
+  pages.
+- `test/extraction.test.js` — reproduce the multi-business collapse and
+  preserve the single-business fallback contract with local HTML fixtures.
+- `package.json` — declare the Cheerio test fixture dependency and include the
+  new test in syntax validation.
+- `README.md` — document extraction regression coverage.
+- `.github/maintenance-log.md` — record this maintenance work.
+
+### Validation
+
+- `npm run check`
+- `npm test`
+- `git diff --check`
+- Reviewed the complete diff for extraction accuracy, backward compatibility,
+  dependency scope, security, and repository conventions.
+
+### Risk
+
+Low. Single-business pages retain their page-level contact fallback. On pages
+with multiple structured businesses, only explicitly associated phone numbers
+and emails are attached, preventing unrelated directory contacts from merging
+records. Crawl limits, network policy, API shapes, and exports are unchanged.
+
+### Rollback
+
+Revert this pull request's squash commit to restore page-wide contact fallback
+for every structured record.
+
 ## 2026-10-18 — Stop active crawls during application shutdown
 
 ### Rationale

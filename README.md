@@ -156,6 +156,7 @@ src/index.js            Crawl configuration, extraction, deduplication, exports
 src/app.js              Express app, API routes, and in-memory job lifecycle
 src/server.js           Port binding and graceful process shutdown
 test/app.test.js        HTTP lifecycle regression tests with a stub crawler
+test/extraction.test.js Structured-data contact and deduplication regressions
 .github/maintenance-log.md
                         Maintenance decisions and validation history
 ```
@@ -170,9 +171,11 @@ npm run check
 npm test
 ```
 
-The HTTP tests do not crawl external sites. They create the Express application
-with injected test doubles, bind it to an ephemeral loopback port, and exercise
-normal, stop-failure, and application-disposal lifecycle paths.
+The tests do not crawl external sites. HTTP coverage creates the Express
+application with injected test doubles, binds it to an ephemeral loopback port,
+and exercises normal, stop-failure, and application-disposal lifecycle paths.
+Extraction coverage uses local HTML fixtures to verify structured business
+records and page-level contact fallbacks.
 
 When contributing:
 
