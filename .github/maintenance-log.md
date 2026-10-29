@@ -1,5 +1,44 @@
 # Maintenance log
 
+## 2026-10-29 — Normalize structured address objects
+
+### Rationale
+
+Schema.org allows `addressRegion` and `addressCountry` to be structured objects
+as well as text. The extractor passed those objects through string coercion,
+producing `[object Object]` in exported addresses and region/country fields.
+Structured values now use their `name`, while existing text addresses retain
+their current output.
+
+### Files changed
+
+- `src/index.js` — normalize text and named structured address components before
+  composing lead fields.
+- `test/extraction.test.js` — cover `AdministrativeArea` and `Country` objects in
+  a local JSON-LD fixture.
+- `README.md` — describe the structured-address regression coverage.
+- `.github/maintenance-log.md` — record this maintenance work.
+
+### Validation
+
+- `npm run check`
+- `npm test`
+- `git diff --check`
+- Reviewed the complete diff for extraction accuracy, backward compatibility,
+  security, dependency scope, and repository conventions.
+
+### Risk
+
+Low. Text-valued address components are unchanged. Structured region and country
+objects now contribute their explicit `name` instead of JavaScript's generic
+object string. Crawl limits, network policy, API shapes, and dependencies are
+unchanged.
+
+### Rollback
+
+Revert this pull request's squash commit to restore direct string coercion for
+structured region and country values.
+
 ## 2026-10-24 — Keep directory businesses distinct
 
 ### Rationale

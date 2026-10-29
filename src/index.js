@@ -201,11 +201,14 @@ function jsonLdType(obj) { const t = obj?.['@type']; return Array.isArray(t) ? t
 function normalizeAddress(a) {
   if (!a) return { full:'', city:'', state:'', country:'' };
   if (typeof a === 'string') return { full: clean(a), city:'', state:'', country:'' };
+  const state = structuredText(a.addressRegion);
+  const country = structuredText(a.addressCountry);
   return {
-    full: [a.streetAddress, a.addressLocality, a.addressRegion, a.postalCode, a.addressCountry].filter(Boolean).join(', '),
-    city: clean(a.addressLocality || ''), state: clean(a.addressRegion || ''), country: clean(a.addressCountry || '')
+    full: [a.streetAddress, a.addressLocality, state, a.postalCode, country].filter(Boolean).join(', '),
+    city: clean(a.addressLocality || ''), state: clean(state), country: clean(country)
   };
 }
+function structuredText(value) { return value && typeof value === 'object' ? clean(value.name) : value; }
 function collectSocials($, baseUrl) {
   return unique($('a[href]').map((_, el) => {
     try { const u = new URL($(el).attr('href'), baseUrl); return isSocialUrl(u.href) ? u.href.split('#')[0] : ''; } catch { return ''; }
