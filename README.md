@@ -175,7 +175,7 @@ The tests do not crawl external sites. HTTP coverage creates the Express
 application with injected test doubles, binds it to an ephemeral loopback port,
 and exercises normal, stop-failure, and application-disposal lifecycle paths.
 Extraction coverage uses local HTML fixtures to verify structured business
-records and page-level contact fallbacks.
+addresses, contact fallbacks, and deduplication behavior.
 
 When contributing:
 

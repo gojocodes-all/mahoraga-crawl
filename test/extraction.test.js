@@ -62,3 +62,34 @@ test('page contacts remain a fallback for one structured business', () => {
   assert.equal(record.phone, '+234 800 000 0000');
   assert.equal(record.email, 'directory@example.com');
 });
+
+test('structured address regions and countries use their names', () => {
+  const $ = pageWithBusinesses([
+    {
+      '@type': 'LocalBusiness',
+      name: 'Alpha Bakery',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: '12 Example Road',
+        addressLocality: 'Ikeja',
+        addressRegion: {
+          '@type': 'AdministrativeArea',
+          name: 'Lagos',
+        },
+        postalCode: '100001',
+        addressCountry: {
+          '@type': 'Country',
+          name: 'NG',
+        },
+      },
+    },
+  ]);
+
+  const [record] = extractBusinessRecords($, 'https://alpha.example');
+
+  assert.equal(record.address, '12 Example Road, Ikeja, Lagos, 100001, NG');
+  assert.equal(record.city, 'Ikeja');
+  assert.equal(record.state, 'Lagos');
+  assert.equal(record.countryCode, 'NG');
+  assert.equal(record.address.includes('[object Object]'), false);
+});
