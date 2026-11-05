@@ -128,7 +128,8 @@ curl --request POST http://localhost:3000/api/crawls \
 The create response includes an `id`. Poll `/api/crawls/:id` until `status` is
 `completed`, `failed`, or `stopped`. Status responses expose at most the 300 most
 recent leads and 20 most recent errors; export endpoints use the full in-memory
-lead set.
+lead set. Malformed JSON request bodies return HTTP 400 with a stable JSON error
+instead of an HTML framework error page.
 
 The service is designed for controlled use. It does not provide authentication
 or rate limiting, so do not expose it directly to untrusted public traffic
@@ -173,7 +174,8 @@ npm test
 
 The tests do not crawl external sites. HTTP coverage creates the Express
 application with injected test doubles, binds it to an ephemeral loopback port,
-and exercises normal, stop-failure, and application-disposal lifecycle paths.
+and exercises normal, malformed-request, stop-failure, and application-disposal
+lifecycle paths.
 Extraction coverage uses local HTML fixtures to verify structured business
 addresses, contact fallbacks, and deduplication behavior.
 

@@ -1,5 +1,42 @@
 # Maintenance log
 
+## 2026-11-05 — Keep malformed-request errors inside the JSON API contract
+
+### Rationale
+
+Malformed JSON request bodies bypassed the crawl route and reached Express's
+default error handler. API clients therefore received an HTML page containing
+parser details and local stack paths instead of the stable JSON error shape used
+by the rest of the API. The application now handles JSON parse failures at its
+boundary and returns a concise HTTP 400 response.
+
+### Files changed
+
+- `src/app.js` — translate JSON parser failures into a stable public error.
+- `test/app.test.js` — cover the status, content type, and response body for a
+  malformed JSON crawl request.
+- `README.md` — document the malformed-request response contract and coverage.
+- `.github/maintenance-log.md` — record this maintenance work.
+
+### Validation
+
+- `npm run check`
+- `npm test`
+- `git diff --check`
+- Reviewed the complete diff for API compatibility, error disclosure, security,
+  dependencies, and repository conventions.
+
+### Risk
+
+Low. Valid requests and route-level validation retain their existing behavior.
+Only JSON syntax errors now use the API's JSON error shape instead of Express's
+HTML default response.
+
+### Rollback
+
+Revert this pull request's squash commit to restore Express's default malformed
+JSON response.
+
 ## 2026-10-29 — Normalize structured address objects
 
 ### Rationale

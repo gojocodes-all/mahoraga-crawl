@@ -162,6 +162,11 @@ export function createApp({
     return res.send(toCsv(job.leads));
   });
 
+  app.use((error, _req, res, next) => {
+    if (error?.type !== 'entity.parse.failed') return next(error);
+    return res.status(400).json({ error: 'Request body must contain valid JSON.' });
+  });
+
   const cleanupTimer = setInterval(() => {
     const cutoff = Date.now() - jobTtlMs;
     for (const [id, job] of jobs) {
