@@ -87,6 +87,19 @@ test('unknown crawl IDs return a stable JSON error', async () => {
   assert.deepEqual(body, { error: 'Crawl not found or expired.' });
 });
 
+test('malformed request bodies return a stable JSON error', async () => {
+  const response = await fetch(`${baseUrl}/api/crawls`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{',
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.match(response.headers.get('content-type'), /^application\/json\b/);
+  assert.deepEqual(body, { error: 'Request body must contain valid JSON.' });
+});
+
 test('stopping a completed crawl preserves its terminal status', async () => {
   const response = await fetch(`${baseUrl}/api/crawls/test-crawl-id/stop`, {
     method: 'POST',
