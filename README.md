@@ -177,7 +177,8 @@ application with injected test doubles, binds it to an ephemeral loopback port,
 and exercises normal, malformed-request, stop-failure, and application-disposal
 lifecycle paths.
 Extraction coverage uses local HTML fixtures to verify structured business
-addresses, contact fallbacks, and deduplication behavior.
+addresses, single-valued Schema.org links, contact fallbacks, and deduplication
+behavior.
 
 When contributing:
 
@@ -188,3 +189,4 @@ When contributing:
    security headers.
 4. Run both validation commands and review the complete diff before opening a
    pull request.
+

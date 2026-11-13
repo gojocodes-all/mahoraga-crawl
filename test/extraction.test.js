@@ -93,3 +93,35 @@ test('structured address regions and countries use their names', () => {
   assert.equal(record.countryCode, 'NG');
   assert.equal(record.address.includes('[object Object]'), false);
 });
+
+test('a single sameAs website remains the structured business website', () => {
+  const $ = pageWithBusinesses([
+    {
+      '@type': 'LocalBusiness',
+      name: 'Alpha Bakery',
+      sameAs: 'https://alpha.example/about',
+    },
+  ]);
+
+  const [record] = extractBusinessRecords($, 'https://directory.example');
+
+  assert.equal(record.website, 'https://alpha.example/about');
+});
+
+test('a single social sameAs value remains a social link', () => {
+  const $ = pageWithBusinesses([
+    {
+      '@type': 'LocalBusiness',
+      name: 'Alpha Bakery',
+      sameAs: 'https://www.instagram.com/alpha-bakery',
+    },
+  ]);
+
+  const [record] = extractBusinessRecords($, 'https://directory.example');
+
+  assert.deepEqual(record.socialLinks, [
+    'https://www.instagram.com/alpha-bakery',
+  ]);
+  assert.equal(record.website, 'https://directory.example');
+});
+

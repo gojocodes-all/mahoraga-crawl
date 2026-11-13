@@ -1,5 +1,41 @@
 # Maintenance log
 
+## 2026-11-13 — Preserve single-valued structured links
+
+### Rationale
+
+Schema.org JSON-LD properties can be represented as one value or an array, but
+the extractor only inspected `sameAs` when it was an array. A business using a
+single string-valued `sameAs` therefore lost its canonical website or social
+profile even though the equivalent array form was retained.
+
+### Files changed
+
+- `src/index.js` — normalize `sameAs` to one internal list before selecting a
+  standalone website and social profiles.
+- `test/extraction.test.js` — cover single website and single social-profile
+  values.
+- `README.md` — document the expanded structured-link regression coverage.
+- `.github/maintenance-log.md` — record this maintenance work.
+
+### Validation
+
+- `npm run check`
+- `node --test test/*.test.js` — 13 tests passed
+- Reviewed the complete diff for extraction accuracy, backward compatibility,
+  security, dependency scope, and repository conventions.
+
+### Risk
+
+Low. Existing array-valued `sameAs`, explicit `url`, page-link discovery,
+fallback origins, API shapes, crawl limits, and dependencies are unchanged.
+Single string values now follow the same extraction path as one-element arrays.
+
+### Rollback
+
+Revert this pull request's squash commit to restore array-only `sameAs`
+handling and remove the focused regression coverage.
+
 ## 2026-11-05 — Keep malformed-request errors inside the JSON API contract
 
 ### Rationale
@@ -306,3 +342,4 @@ an importable factory and closes its cleanup timer during graceful shutdown.
 ### Rollback
 
 Revert the pull request's squash commit to restore the single-file server.
+
