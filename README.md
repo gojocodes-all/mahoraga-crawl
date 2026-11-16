@@ -158,6 +158,8 @@ src/app.js              Express app, API routes, and in-memory job lifecycle
 src/server.js           Port binding and graceful process shutdown
 test/app.test.js        HTTP lifecycle regression tests with a stub crawler
 test/extraction.test.js Structured-data contact and deduplication regressions
+.github/workflows/validate.yml
+                        Pull-request and main-branch validation
 .github/maintenance-log.md
                         Maintenance decisions and validation history
 ```
@@ -171,6 +173,11 @@ npm install
 npm run check
 npm test
 ```
+
+Pull requests and changes to `main` run the same syntax and test commands on
+Node.js 20 in a read-only GitHub Actions workflow. The hosted install disables
+dependency lifecycle scripts because the current validation suite does not
+require them.
 
 The tests do not crawl external sites. HTTP coverage creates the Express
 application with injected test doubles, binds it to an ephemeral loopback port,

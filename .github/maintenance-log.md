@@ -1,5 +1,46 @@
 # Maintenance log
 
+## 2026-11-16 — Validate crawler changes before merge
+
+### Rationale
+
+The repository documents syntax and regression-test commands, but neither was
+enforced for pull requests or changes to `main`. A contributor could therefore
+merge a syntax error, API lifecycle regression, or extraction failure without
+the existing checks reporting it. A least-privilege workflow now runs those
+same commands on the declared Node.js 20 runtime.
+
+### Files changed
+
+- `.github/workflows/validate.yml` — add read-only, timeout-bounded validation
+  with immutable official action revisions and disabled checkout credentials.
+- `README.md` — document the hosted gate and its dependency-install boundary.
+- `.github/maintenance-log.md` — record this maintenance work.
+
+### Validation
+
+- `npm install --ignore-scripts --no-package-lock`
+- `npm run check`
+- `npm test`
+- Parsed the workflow as YAML and verified both pinned revisions against the
+  official `actions/checkout` and `actions/setup-node` repositories.
+- `git diff --check`
+- Reviewed the complete diff for workflow permissions, credential persistence,
+  untrusted pull-request behavior, network crawling, compatibility, and scope.
+
+### Risk
+
+Low. The workflow has read-only repository access, does not receive a package or
+deployment permission, and runs the existing offline tests without crawling
+external sites. Runtime code, API behavior, dependencies, crawl policy, data,
+and deployment configuration are unchanged.
+
+### Rollback
+
+Revert this pull request's squash commit to remove hosted validation and its
+documentation. No runtime state, dependency graph, schema, or deployment needs
+migration.
+
 ## 2026-11-13 — Preserve single-valued structured links
 
 ### Rationale
