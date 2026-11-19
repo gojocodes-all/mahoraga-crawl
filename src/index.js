@@ -90,24 +90,12 @@ export function extractBusinessRecords($, url, statusCode = 200) {
   ]).slice(0, 12);
   const socials = collectSocials($, url);
   const source = new URL(url);
-  const usePageContactFallback = orgs.length === 1;
 
   const fromJsonLd = orgs.map(obj => {
     const address = normalizeAddress(obj.address);
-    const sameAs = Array.isArray(obj.sameAs)
-      ? obj.sameAs
-      : [obj.sameAs].filter(Boolean);
-    const phones = unique([
-      ...(Array.isArray(obj.telephone) ? obj.telephone : [obj.telephone]),
-      ...(usePageContactFallback ? phonesOnPage : []),
-    ].filter(Boolean).map(clean));
-    const emails = unique([
-      ...(Array.isArray(obj.email) ? obj.email : [obj.email]),
-      ...(usePageContactFallback ? emailsOnPage : []),
-    ].filter(Boolean).map(clean));
-    const website = clean(
-      obj.url || sameAs.find(v => isStandaloneUrl(v)) || source.origin,
-    );
+    const phones = unique([...(Array.isArray(obj.telephone) ? obj.telephone : [obj.telephone]), ...phonesOnPage].filter(Boolean).map(clean));
+    const emails = unique([...(Array.isArray(obj.email) ? obj.email : [obj.email]), ...emailsOnPage].filter(Boolean).map(clean));
+    const website = clean(obj.url || obj.sameAs?.find?.(v => isStandaloneUrl(v)) || source.origin);
     return {
       title: clean(obj.name || siteName || h1 || simplifyTitle(pageTitle) || source.hostname),
       categoryName: clean(jsonLdType(obj) || inferCategoryFromPage(pageTitle, h1, description)),
@@ -123,7 +111,7 @@ export function extractBusinessRecords($, url, statusCode = 200) {
       url,
       description: clean(obj.description || description),
       pageTitle,
-      socialLinks: unique([...socials, ...sameAs.filter(isSocialUrl)]),
+      socialLinks: unique([...socials, ...(Array.isArray(obj.sameAs) ? obj.sameAs.filter(isSocialUrl) : [])]),
       crawlMeta: { statusCode, crawledAt: new Date().toISOString(), source: 'json-ld' }
     };
   });
@@ -206,14 +194,11 @@ function jsonLdType(obj) { const t = obj?.['@type']; return Array.isArray(t) ? t
 function normalizeAddress(a) {
   if (!a) return { full:'', city:'', state:'', country:'' };
   if (typeof a === 'string') return { full: clean(a), city:'', state:'', country:'' };
-  const state = structuredText(a.addressRegion);
-  const country = structuredText(a.addressCountry);
   return {
-    full: [a.streetAddress, a.addressLocality, state, a.postalCode, country].filter(Boolean).join(', '),
-    city: clean(a.addressLocality || ''), state: clean(state), country: clean(country)
+    full: [a.streetAddress, a.addressLocality, a.addressRegion, a.postalCode, a.addressCountry].filter(Boolean).join(', '),
+    city: clean(a.addressLocality || ''), state: clean(a.addressRegion || ''), country: clean(a.addressCountry || '')
   };
 }
-function structuredText(value) { return value && typeof value === 'object' ? clean(value.name) : value; }
 function collectSocials($, baseUrl) {
   return unique($('a[href]').map((_, el) => {
     try { const u = new URL($(el).attr('href'), baseUrl); return isSocialUrl(u.href) ? u.href.split('#')[0] : ''; } catch { return ''; }
@@ -244,4 +229,3 @@ function clampInt(v,min,max,f){ const n=Number.parseInt(v,10); return Number.isF
 function clampNumber(v,min,max,f){ const n=Number(v); return Number.isFinite(n)?Math.max(min,Math.min(max,n)):f; }
 function badRequest(m){ const e=new Error(m); e.statusCode=400; return e; }
 function csvCell(v){ const s=Array.isArray(v)?v.join(' | '):typeof v==='object'&&v?JSON.stringify(v):String(v??''); return /[",\n\r]/.test(s)?`"${s.replace(/"/g,'""')}"`:s; }
-
